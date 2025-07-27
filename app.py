@@ -1,8 +1,10 @@
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
 from flask import Flask, request, jsonify
 from Crypto.Cipher import AES
 import base64
 import requests
-import hashlib
 
 app = Flask(__name__)
 
@@ -24,16 +26,18 @@ def decrypt_media():
 
         media_key = base64.b64decode(media_key_b64)
 
-        # Media Key'den AES anahtarlarını üret
-        # WhatsApp'ta farklı medyalar için info eklenir. Örn: "WhatsApp Image Keys"
+        # Media Key'den AES anahtarlarını üretmek için HKDF kullanımı
         media_type_info = b"WhatsApp Image Keys"
-        media_derived = hashlib.hkdf(
-            algorithm=hashlib.sha256,
+
+        hkdf = HKDF(
+            algorithm=hashes.SHA256(),
             length=112,
-            salt=b"",
+            salt=None,
             info=media_type_info,
-            key=media_key,
+            backend=default_backend()
         )
+        media_derived = hkdf.derive(media_key)
+
         iv = media_derived[0:16]
         cipher_key = media_derived[16:48]
         mac_key = media_derived[48:80]
@@ -56,7 +60,7 @@ def decrypt_media():
             "length": len(decrypted),
             "preview": base64.b64encode(decrypted[:20]).decode("utf-8")
         })
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
