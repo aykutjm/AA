@@ -55,10 +55,13 @@ def decrypt_media():
         pad_len = decrypted[-1]
         decrypted = decrypted[:-pad_len]
 
+        image_base64 = base64.b64encode(decrypted).decode("utf-8")
+
         return jsonify({
             "status": "success",
             "length": len(decrypted),
-            "preview": base64.b64encode(decrypted[:20]).decode("utf-8")
+            "preview": base64.b64encode(decrypted[:20]).decode("utf-8"),  # ilk 20 byte örnek
+            "base64": image_base64  # 👈 TAM GÖRSEL buradan alınacak
         })
 
     except Exception as e:
