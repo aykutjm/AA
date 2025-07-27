@@ -1,15 +1,12 @@
-FROM node:18-alpine
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# package.json ve package-lock.json varsa kopyala
-COPY package*.json ./
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
 
-RUN npm install
-
-# Tüm dosyaları kopyala
 COPY . .
 
-# Varsayalım ana dosyan index.js
-CMD ["node", "index.js"]
+EXPOSE 5000
 
+CMD ["python", "app.py"]
