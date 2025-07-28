@@ -14,15 +14,19 @@ def home():
 
 @app.route("/decrypt", methods=["POST"])
 def decrypt_media():
+    # Content-Type kontrolü
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 415
+
     try:
-        data = request.json
+        data = request.get_json()
         media_key_b64 = data.get("media_key")
         media_url = data.get("url")
         mime_type = data.get("mime_type")  # opsiyonel
         file_enc_sha256 = data.get("file_enc_sha256")  # opsiyonel
 
         if not media_key_b64 or not media_url:
-            return jsonify({"error": "media_key ve url gerekli"}), 400
+            return jsonify({"error": "media_key ve url alanları gereklidir"}), 400
 
         media_key = base64.b64decode(media_key_b64)
 
@@ -45,14 +49,16 @@ def decrypt_media():
         # Şifrelenmiş dosyayı indir
         response = requests.get(media_url)
         if response.status_code != 200:
-            return jsonify({"error": "Dosya indirilemedi"}), 400
+            return jsonify({"error": "Dosya indirilemedi, status code: {}".format(response.status_code)}), 400
 
         file_enc = response.content[:-10]  # son 10 byte: MAC
         cipher = AES.new(cipher_key, AES.MODE_CBC, iv)
         decrypted = cipher.decrypt(file_enc)
 
-        # Padding temizliği (PKCS#7)
+        # PKCS#7 padding temizliği
         pad_len = decrypted[-1]
+        if pad_len < 1 or pad_len > 16:
+            return jsonify({"error": "Geçersiz padding uzunluğu"}), 400
         decrypted = decrypted[:-pad_len]
 
         image_base64 = base64.b64encode(decrypted).decode("utf-8")
@@ -60,12 +66,12 @@ def decrypt_media():
         return jsonify({
             "status": "success",
             "length": len(decrypted),
-            "preview": base64.b64encode(decrypted[:20]).decode("utf-8"),  # ilk 20 byte örnek
-            "base64": image_base64  # 👈 TAM GÖRSEL buradan alınacak
+            "preview": base64.b64encode(decrypted[:20]).decode("utf-8"),
+            "base64": image_base64
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "İşlem sırasında hata: {}".format(str(e))}), 500
 
 
 if __name__ == "__main__":
